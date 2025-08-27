@@ -1066,7 +1066,7 @@ if st.button("Run") and league_id:
     st.table(top_3_chips_df)
     st.text(f"\nBottom chips score teams:\n")
     st.table(bottom_3_chips_df)
-    st.text(f"### \t\tLuck Factor: \n")
+    st.text(f"\t\t ### Luck Factor: \n")
     st.text(f"\nTeams with the most points from automatic substitutions:\n")
     st.table(top_3_highest_scoring_autosubs_df)
     st.text(f"\nTeams with the least points from automatic substitutions:\n")
