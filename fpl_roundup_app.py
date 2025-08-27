@@ -698,7 +698,6 @@ if st.button("Run") and league_id:
             )
     else: rise_strs = "No rank risers so far."
     
-    
     # 5. Unique picks and their scores
     least_selected_players_indices = []
     for p in least_selected_players:
@@ -707,7 +706,6 @@ if st.button("Run") and league_id:
     names = list(least_selected_players_vs_scores.keys())
     points = list(least_selected_players_vs_scores.values())
     
-    # Step 2: build DataFrame
     df_rare_players = pd.DataFrame({
         "Player ID": least_selected_players_indices,
         "Player": names,
@@ -715,7 +713,6 @@ if st.button("Run") and league_id:
     })
     
     df_rare_players = df_rare_players.sort_values("Score", ascending=False).head(3)
-    
     
     top_rare_indices = list(df_rare_players.head(3)["Player ID"])
     selected_by = defaultdict(list)
@@ -730,6 +727,9 @@ if st.button("Run") and league_id:
     
     df_rare_players_shortlisted = df_rare_players.copy().drop(columns = "Player ID")
     df_rare_players_shortlisted["Selected by"] = rare_player_team
+    df_rare_players_shortlisted["Selected by"] = df_rare_players_shortlisted["Selected by"].apply(
+    lambda x: ", ".join(x) if isinstance(x, list) else x
+)
     top_unique_picks = df_rare_players_shortlisted.to_string(index=False)
     
     
@@ -990,7 +990,7 @@ if st.button("Run") and league_id:
     #Prompt
     prompt = f"""You are the witty but fair commissioner of an FPL league. Voice: Insightful, borderline mean-spirited, witty, banterful. Not very kids friendly (PG 13).
     Write about Gameweek {current_gw} in 500-700 words. You also need to have knowledge of the Premier League footballing world and make
-    remarks that the fans can relate to, as a part of your sense of humor.
+    remarks that the fans can relate to, as a part of your sense of humor. Output in a markdown (MD) format.
     
     Write your commentary in this order:
     1. Talk about most common captains chosen by the managers using this data: {df_teams_times_captained_strip_str}. Also talk about most commonly played players by every team using this data: {df_teams_times_chosen_strip_str}. Also talk about the chip usage statistics by each team: {chip_usage_stats_str}.
@@ -1033,31 +1033,45 @@ if st.button("Run") and league_id:
     )
     
     # Assemble the final human-readable report
-    final_response = f"""
-    {league_name_text} \n
-    {gw_text} \n
-    Summary: \n\n
-    {response.choices[0].message.content} \n\n
-    Top 3 teams: \n{top_3_str} \n\n
-    Bottom 3 teams: \n{bottom_3_str} \n\n
-    Best Transfer Maker(s): \n{best_transfer_str} points earned in total through transfers\n\n
-    Worst Transfer Maker(s): \n{worst_transfer_str} points earned in total through transfers\n\n
-    Biggest rank riser(s): \n{rise_strs} \n\n
-    Biggest rank faller(s): \n{fall_strs} \n\n
-    Top scoring unique pick(s) chosen only {min_selected} times by managers in the league: \n {top_unique_picks} \n\n
-    Best captaincy effectiveness teams: \n{top_captaincy_str} \n\n
-    Worst captaincy effectiveness teams: \n{worst_captaincy_str} \n\n
-    Most single-player reliant teams: \n{top_3_reliance_str} \n\n
-    Least single-player reliant teams: \n{bottom_3_reliance_str} \n\n
-    Teams with highest scoring captains: \n{top_3_highest_scoring_captains_str} \n\n
-    Teams with lowest scoring captains: \n{bottom_3_lowest_scoring_captains_str} \n\n
-    Top chips score teams: \n{top_3_chips_str} \n\n
-    Bottom chips score teams: \n{bottom_3_chips_str} \n\n
-    \t\tLuck Factor: \n
-    Teams with most points from automatic substitutions: \n{top_3_highest_scoring_autosubs_str} \n\n
-    Teams with least points from automatic substitutions: \n{bottom_3_lowest_scoring_autosubs_str} \n\n
-    Teams with most points from Vice Captain acting as Captain: \n{top_3_highest_scoring_vc2c_str} \n\n
-    Teams with least points from Vice Captain acting as Captain: \n{bottom_3_lowest_scoring_vc2c_str} \n\n
-    """
-    st.write("Report with LLM response")
-    st.write(final_response)
+    st.markdown("# Final Report")
+
+    st.markdown(f"### \n{league_name_text}")
+    st.markdown(f" ###\n{gw_text}")
+    st.markdown(f"# Summary: \n\n""")
+
+    st.markdown(f"{response.choices[0].message.content} \n\n")
+    st.text(f"\nTop 3 teams:\n")
+    st.table(top_3_df)
+    st.text(f"\nBottom 3 teams:\n")
+    st.table(bottom_3_df)
+    st.text(f"\nBest Transfer Maker(s): \n{best_transfer_str} points earned in total through transfers\n\n")    
+    st.text(f"\nWorst Transfer Maker(s): \n{worst_transfer_str} points earned in total through transfers\n\n")
+    st.text(f"\nBiggest rank riser(s): \n{", ".join(rise_strs)} \n\n")
+    st.text(f"\nBiggest rank faller(s): \n{", ".join(fall_strs)} \n\n")
+    st.text(f"\nTop scoring unique pick(s) chosen only {min_selected} times by managers in the league:\n")
+    st.table(df_rare_players_shortlisted)
+    st.text(f"\nBest captaincy effectiveness teams:\n")
+    st.table(top_captaincy_ratio_teams)
+    st.text(f"\nWorst captaincy effectiveness teams:\n")
+    st.table(bottom_captaincy_ratio_teams)
+    st.text(f"\nMost single-player reliant teams:\n")
+    st.table(top_3_reliance_df)
+    st.text(f"\nLeast single-player reliant teams:\n")
+    st.table(bottom_3_reliance_df)
+    st.text(f"\nTeams with the highest scoring captains:\n")
+    st.table(top_3_highest_scoring_captains_df)
+    st.text(f"\nTeams with the lowest scoring captains:\n")
+    st.table(bottom_3_lowest_scoring_captains_df)
+    st.text(f"\nTop chips score teams:\n")
+    st.table(top_3_chips_df)
+    st.text(f"\nBottom chips score teams:\n")
+    st.table(bottom_3_chips_df)
+    st.text(f"### \t\tLuck Factor: \n")
+    st.text(f"\nTeams with the most points from automatic substitutions:\n")
+    st.table(top_3_highest_scoring_autosubs_df)
+    st.text(f"\nTeams with the least points from automatic substitutions:\n")
+    st.table(bottom_3_lowest_scoring_autosubs_df)
+    st.text(f"\nTeams with most points from Vice Captain acting as Captain:\n")
+    st.table(top_3_highest_scoring_vc2c_df)
+    st.text(f"\nTeams with least points from Vice Captain acting as Captain:\n")
+    st.table(bottom_3_lowest_scoring_vc2c_df)
