@@ -7,7 +7,7 @@ import os
 from openai import OpenAI
 
 load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
+api_key = os.environ.get("OPENAI_API_KEY")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 BASE_URL = "https://fantasy.premierleague.com/api"
@@ -1035,9 +1035,9 @@ if st.button("Run") and league_id:
     # Assemble the final human-readable report
     st.markdown("# Final Report")
 
-    st.markdown(f"\n ### {league_name_text}")
-    st.markdown(f"\n ### {gw_text}")
-    st.markdown(f"# Summary: \n\n""")
+    st.markdown(f"\n #### {league_name_text}")
+    st.markdown(f"\n #### {gw_text}")
+    st.markdown(f"### Summary: \n\n""")
 
     st.markdown(f"{response.choices[0].message.content} \n\n")
     st.text(f"\nTop 3 teams:\n")
