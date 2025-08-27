@@ -1035,8 +1035,8 @@ if st.button("Run") and league_id:
     # Assemble the final human-readable report
     st.markdown("# Final Report")
 
-    st.markdown(f"### \n{league_name_text}")
-    st.markdown(f" ###\n{gw_text}")
+    st.markdown(f"\n ### {league_name_text}")
+    st.markdown(f"\n ### {gw_text}")
     st.markdown(f"# Summary: \n\n""")
 
     st.markdown(f"{response.choices[0].message.content} \n\n")
