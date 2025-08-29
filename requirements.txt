@@ -3,3 +3,4 @@ requests
 pandas
 dotenv
 openai
+openai-agents
