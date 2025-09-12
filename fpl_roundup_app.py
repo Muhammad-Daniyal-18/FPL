@@ -1430,14 +1430,24 @@ if st.session_state.run_pressed and league_id.strip():
         st.markdown(f"### Summary: \n\n""")
 
         st.markdown(f"{response_final.choices[0].message.content} \n\n")
+
         st.text(f"\nLeague Table Standings\n")
+
         all_teams_display_ranking["Team"] = (
             "**" + all_teams_display_ranking["Team name"] + "**"
             + "<br><span style='color:gray; font-size:90%'>"
             + all_teams_display_ranking["Player name"] + "</span>"
         )
         all_teams_display_ranking = all_teams_display_ranking.drop(columns=["Team name", "Player name"])
+        cols = list(all_teams_display_ranking.columns)
+
+        if "Rank" in cols and "Team" in cols:
+            # Ensure Rank stays first, Team comes second
+            new_order = ["Rank", "Team"] + [c for c in cols if c not in ["Rank", "Team"]]
+            all_teams_display_ranking = all_teams_display_ranking[new_order]
+            
         st.markdown(all_teams_display_ranking.to_markdown(index=False), unsafe_allow_html=True)
+
         st.text(f"\nBest Transfer Maker(s): \n{best_transfer_str} points earned in total through transfers\n\n")    
         st.text(f"\nWorst Transfer Maker(s): \n{worst_transfer_str} points earned in total through transfers\n\n")
         st.text(f"\nBiggest rank riser(s): \n{", ".join(rise_strs)} \n\n")
