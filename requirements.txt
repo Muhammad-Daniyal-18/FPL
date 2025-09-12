@@ -4,3 +4,4 @@ pandas
 dotenv
 openai
 openai-agents
+tabulate
