@@ -5,14 +5,59 @@ import json
 import sys
 import io
 import requests
+from datetime import datetime
 import pandas as pd
 from collections import defaultdict
 from dotenv import load_dotenv
 import os
+import time
 from openai import OpenAI
 from agents import Agent, Runner, WebSearchTool, OpenAIResponsesModel
 from openai import AsyncOpenAI
 import asyncio
+import markdown2
+from weasyprint import HTML
+from fpdf import FPDF, HTMLMixin
+
+def save_markdown_to_pdf(md_content, output_dir="outputs", current_gw="1"):
+    # Convert Markdown → HTML
+    html = markdown2.markdown(md_content, extras=["tables"])  # keep tables intact
+
+    # Add minimal CSS for table formatting
+    styled_html = f"""
+    <html>
+    <head>
+    <style>
+        body {{ font-family: Arial, sans-serif; }}
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }}
+        th {{
+            background-color: #f2f2f2;
+        }}
+    </style>
+    </head>
+    <body>{html}</body>
+    </html>
+    """
+
+    # Prepare output
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    pdf_name = f"final_report_gameweek_{current_gw}_{timestamp}.pdf"
+    pdf_path = os.path.join(output_dir, pdf_name)
+
+    # Render HTML → PDF
+    HTML(string=styled_html).write_pdf(pdf_path)
+
+    return pdf_path, pdf_name
 
 @st.cache_data(show_spinner=False)
 def fetch_json(url, params=None, headers=None, timeout=30):
@@ -71,6 +116,7 @@ if run and league_id:
     st.session_state.run_pressed = True
 
 if st.session_state.run_pressed and league_id.strip():
+    report_lines = []
     with st.spinner("Running analysis..."):
         load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
@@ -1102,7 +1148,7 @@ if st.session_state.run_pressed and league_id.strip():
             ),
         )
 
-        result = run_agent(
+        scout_result = run_agent(
             fpl_agent_links,
             f"""Extract only tips/advice/suggestions from official FPL Scout articles for Gameweek {current_gw} of the 2025/26 season. 
         Rules you must follow strictly:
@@ -1385,7 +1431,7 @@ if st.session_state.run_pressed and league_id.strip():
 
         IMPORTANT: Here are some tips that the FPL Scout from the official premier league website gave for this gameweek. 
         It mostly includes adding/removing certain players or using certain chips which the scout thinks will prove to be fruitful.
-        Read through these tips: {result.final_output}
+        Read through these tips: {scout_result.final_output}
 
         And using your knowledge and data, comment on the following:
         1. If any of these tips would have yielded good points, now that the gameweek has ended and we have the results in our hands.
@@ -1421,17 +1467,26 @@ if st.session_state.run_pressed and league_id.strip():
             st.write("Rule based metrics list")
             st.write(rule_based_metrics)
             st.text("Web-search result for FPL Scout tips")
-            st.text(result.final_output)
+            st.text(scout_result.final_output)
+
+        #report_lines will hold our final output to be downloaded in a pdf
+        #st will make the display screen output
 
         st.markdown("# Final Report")
+        report_lines.append(f"# Final Report")
+
 
         st.markdown(f"\n #### {league_name_text}")
         st.markdown(f"\n #### {gw_text}")
         st.markdown(f"### Summary: \n\n""")
-
         st.markdown(f"{response_final.choices[0].message.content} \n\n")
 
+        report_lines.append(f"### {league_name_text}")
+        report_lines.append(f"### {gw_text}")
+        report_lines.append(f"Summary:\n\n{response_final.choices[0].message.content}\n\n")
+
         st.text(f"\nLeague Table Standings\n")
+        report_lines.append("\nLeague Table Standings\n")
 
         all_teams_display_ranking["Team"] = (
             "**" + all_teams_display_ranking["Team name"] + "**"
@@ -1447,15 +1502,38 @@ if st.session_state.run_pressed and league_id.strip():
             all_teams_display_ranking = all_teams_display_ranking[new_order]
             
         st.markdown(all_teams_display_ranking.to_markdown(index=False), unsafe_allow_html=True)
+        report_lines.append(all_teams_display_ranking.to_markdown(index=False))
 
         st.text(f"\nBest Transfer Maker(s): \n{best_transfer_str} points earned in total through transfers\n\n")    
         st.text(f"\nWorst Transfer Maker(s): \n{worst_transfer_str} points earned in total through transfers\n\n")
         st.text(f"\nBiggest rank riser(s): \n{", ".join(rise_strs)} \n\n")
         st.text(f"\nBiggest rank faller(s): \n{", ".join(fall_strs)} \n\n")
+
+        report_lines.append(f"\nBest Transfer Maker(s): \n{best_transfer_str} points earned in total through transfers\n\n")    
+        report_lines.append(f"\nWorst Transfer Maker(s): \n{worst_transfer_str} points earned in total through transfers\n\n")
+        report_lines.append(f"\nBiggest rank riser(s): {', '.join(rise_strs)}\n\n")
+        report_lines.append(f"\nBiggest rank faller(s): {', '.join(fall_strs)}\n\n")
+
         st.text(f"\nTeams with the highest scoring captains:\n")
         st.table(top_3_highest_scoring_captains_df.reset_index(drop=True))
         st.text(f"\nTeams with the lowest scoring captains:\n")
         st.table(bottom_3_lowest_scoring_captains_df.reset_index(drop=True))
+
+        report_lines.append("#### Top 3 Highest Scoring Captains")
+        report_lines.append(top_3_highest_scoring_captains_df.to_markdown(index=False))
+        report_lines.append("#### Bottom 3 Lowest Scoring Captains")
+        report_lines.append(bottom_3_lowest_scoring_captains_df.to_markdown(index=False))
+
+    final_report_md = "\n\n".join(report_lines)
+    pdf_path, pdf_name = save_markdown_to_pdf(final_report_md, current_gw=current_gw)
+
+    with open(pdf_path, "rb") as f:
+        st.download_button(
+            label="Download Full Report as PDF",
+            data=f,
+            file_name=pdf_name,
+            mime="application/pdf",
+        )
 
 elif run and not league_id.strip():
     st.warning("Please enter a valid League ID.")

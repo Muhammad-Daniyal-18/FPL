@@ -5,3 +5,6 @@ dotenv
 openai
 openai-agents
 tabulate
+fpdf2
+markdown2
+weasyprint
